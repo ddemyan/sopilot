@@ -1,4 +1,4 @@
-import gui, key
+import gui, key, time
 import pandas as pd
 import PySimpleGUI as sg
 from binance.client import Client
@@ -22,6 +22,16 @@ def display_all_orders():
     window['-id-'].update(values=orderId)# Обновление значений в ComboBox
 def Print(*x):
     window['-ML-'].print('\n', x)
+"""
+def Print(x, start_time):
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    window['-ML-'].print(f"\n{x}\nElapsed time: {elapsed_time:.2f} seconds")
+"""
+def delete_order():
+    if values['-id-']:
+        symbol, order_id = values['-id-']
+        Print(client.cancel_order(symbol=symbol, orderId=order_id))
 def get_depth():
     x = client.get_order_book(symbol=values['-ltp-'])
     window['-ML-'].print(x)
@@ -48,7 +58,7 @@ def log_data(*data):
 dictL = {'Bill': lambda: window['-bill-'].update(values['-lc-']),
          'ОТКРЫТЫЕ ПОЗИЦИИ': lambda: display_all_orders(),
          'Go': lambda: Go(),
-         'Delete': lambda: Print(client.cancel_order(values['-id-']))}
+         'Delete': lambda: delete_order()}
 window = gui.create_window()
 while True:
     event, values = window.read()
