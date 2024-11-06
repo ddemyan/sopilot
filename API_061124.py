@@ -170,7 +170,7 @@ while True:
             Print(values)
         if event == 'СИГНАЛЫ':
 
-            #threading.Thread(target=Run).start()
+            threading.Thread(target=Run).start()
         if event == 'Go': Go()
         if event == 'Bill': Bill()
         if event == 'ВСЕ ОРДЕРА': display_all_orders()
