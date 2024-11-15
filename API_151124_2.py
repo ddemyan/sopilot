@@ -1,3 +1,4 @@
+
 import gui141124, key, math, threading, os, time
 from datetime import datetime
 import pandas as pd
@@ -62,7 +63,7 @@ def Trade():
         q = float(values['-cut-']) * float(client.get_asset_balance(asset='FDUSD')["free"])/price
     else :
         q = float(values['-cut-']) * float(client.get_asset_balance(asset=asset)["free"])
-    target_quantity = Round_quantity(symbol, q)
+    target_quantity = round_quantity(symbol, q)
     accumulated_quantity = 0
     while accumulated_quantity < target_quantity:
         deptH = client.get_order_book(symbol=symbol)
@@ -80,15 +81,23 @@ def Trade():
                     response = client.order_limit_buy(symbol=symbol, price=price, quantity=quantity_to_trade)
                 else:
                     response = client.order_limit_sell(symbol=symbol, price=price, quantity=quantity_to_trade)
-                Print(response)
-                if
-                accumulated_quantity += quantity_to_trade
-                logging.info(f"Placing limit {action} order: {symbol}, {price}, {quantity_to_trade}")
-                logging.info(f"accumulated_quantity: {accumulated_quantity}")
+                Print(f"Placing limit {action} order: {symbol}, {price}, {response['origQty']},{response['status']}")
+                time.sleep(1)
+                if response['status'] == 'PARTIALLY_FILLED' or 'FILLED':
+                    accumulated_quantity += float(response['origQty'])
+                    logging.info(f"Placing limit {action} order: {symbol}, {price}, {response['origQty']},{response['status']}")
+                    logging.info(f"accumulated_quantity: {accumulated_quantity}")
+                    Print(f"Placing limit {action} order: {symbol}, {price}, {response['origQty']},{response['status']}")
+                    Print(f"accumulated_quantity: {accumulated_quantity}")
+                else:
+                    client.cancel_order(symbol=symbol, orderId=response['order_id'])
+
             except Exception as e:
                 logging.error(f"Failed to place order: {e}")
+                Print(f"Failed to place order: {e}")
             if accumulated_quantity >= target_quantity:
                 logging.info(f"Target quantity of {target_quantity} ETH {'bought' if is_buy else 'sold'}")
+                Print(f"Target quantity of {target_quantity} ETH {'bought' if is_buy else 'sold'}")
             break
 def Bill():
     initial_btc_balance = 1
@@ -113,17 +122,17 @@ def Bill():
     window['-billETH-'].update(f"{eth_balance} ({eth_change:.2f}%)")
     window['-billUSDT-'].update(f"{usdt_balance} ({usdt_change:.2f}%)")
     window['-billALL-'].update(total_value)
-def Display_open_orders():
+def display_open_orders():
     orders = pd.DataFrame(client.get_open_orders(symbol=values['-trading_pairs-']),
                           columns=['time','orderId', 'symbol', 'price', 'side', 'origQty', 'status'])
     orders['time'] = pd.to_datetime(orders['time'],unit='ms')+pd.Timedelta(hours=hours)
     orderId = orders[['symbol','orderId']].values.tolist()
     window['-TABLE1-'].update(values=orders.values.tolist())
     window['-id-'].update(values=orderId)
-def Display_all_orders():
-    start_date = datetime.strptime(values['-START_DATE-'],
+def display_all_orders():
+    start_date = datetime.strptime(values['-START_DATE-'] + pd.Timedelta(hours=hours),
                  '%d/%m/%Y %H:%M:%S')
-    end_date = datetime.strptime(values['-END_DATE-'],
+    end_date = datetime.strptime(values['-END_DATE-'] + pd.Timedelta(hours=hours),
                '%d/%m/%Y %H:%M:%S')
     orders = pd.DataFrame(client.get_all_orders(symbol=values['-trading_pairs-']),
              columns=['time','orderId', 'symbol', 'price', 'side', 'origQty', 'status'])
@@ -140,6 +149,7 @@ def Display_all_orders():
     window['-TOTAL_DIFF-'].update(total_price_diff)
 def Print(*x):
     window['-ML-'].print('\n', x, sep='')
+    Tg(x)
 def Cancel_order():
     if values['-id-']:
         symbol, order_id = values['-id-']
@@ -155,7 +165,7 @@ def Save_txt(x):
     with open('ML.txt', 'wt') as f:
         f.write(x)
     f.close()
-def Round_quantity(symbol, quantity):
+def round_quantity(symbol, quantity):
     info = client.get_symbol_info(symbol)
     step_size = float(info['filters'][1]['stepSize'])
     precision = int(round(-math.log(step_size, 10), 0))
@@ -163,8 +173,8 @@ def Round_quantity(symbol, quantity):
 dictL= {'-UPDATE_TABLE-':  lambda: window['-TABLE2-'].update(values=df.values.tolist()),
         '-PRINT-':         lambda: Print(values),
         'Bill':            lambda: Bill(),
-        'ВСЕ ОРДЕРА':      lambda: Display_all_orders(),
-        'ОТКРЫТЫЕ ОРДЕРА': lambda: Display_open_orders(),
+        'ВСЕ ОРДЕРА':      lambda: display_all_orders(),
+        'ОТКРЫТЫЕ ОРДЕРА': lambda: display_open_orders(),
         'Cancel':          lambda: Cancel_order(),
         'Cancel_all':      lambda: Cancel_all_orders(),
         'Do_it':           lambda: Print(eval(values['-LIST_DOIT-'])),
